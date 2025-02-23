@@ -1,50 +1,121 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8'
+import { parse } from 'https://deno.land/x/xml@2.1.1/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper to safely extract text content from XML nodes
+function getNodeText(node: any, path: string[]): string {
+  try {
+    let current = node
+    for (const key of path) {
+      if (!current[key]) return ''
+      current = current[key]
+    }
+    // Handle both direct text and CDATA
+    if (typeof current === 'string') return current
+    if (current['#text']) return current['#text']
+    if (current['#cdata']) return current['#cdata']
+    return ''
+  } catch (e) {
+    console.error(`Error extracting path ${path.join('.')}:`, e)
+    return ''
+  }
+}
+
 async function parseRSS(url: string) {
   try {
-    const response = await fetch(url)
-    const text = await response.text()
-    
-    // Simple XML parsing using regex
-    const items: Array<{ title: string; link: string; description: string; pubDate: string }> = []
-    const itemMatches = text.match(/<item[\s\S]*?<\/item>/g) || []
-    
-    for (const itemXml of itemMatches) {
-      const title = itemXml.match(/<title>(.*?)<\/title>/)?.[1] || ''
-      const link = itemXml.match(/<link>(.*?)<\/link>/)?.[1] || ''
-      const description = itemXml.match(/<description>(.*?)<\/description>/)?.[1] || ''
-      const pubDate = itemXml.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || new Date().toISOString()
-      
-      // Clean up CDATA and HTML entities
-      const cleanContent = (str: string) => {
-        return str
-          .replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&')
-          .replace(/&quot;/g, '"')
-          .replace(/&apos;/g, "'")
+    console.log(`Fetching RSS feed from ${url}`)
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; VeriLens/1.0; +http://verilens.app)'
       }
-
-      items.push({
-        title: cleanContent(title),
-        link: cleanContent(link),
-        description: cleanContent(description),
-        pubDate: new Date(pubDate).toISOString()
-      })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
     
-    return items
+    const text = await response.text()
+    console.log(`Received ${text.length} bytes of RSS data`)
+    
+    // Parse the XML
+    const xmlData = parse(text)
+    
+    // Handle different feed formats (RSS 2.0, RSS 1.0, Atom)
+    let items: any[] = []
+    
+    // Try RSS 2.0 format
+    items = xmlData.rss?.channel?.item || []
+    
+    // Try Atom format if no RSS items found
+    if (items.length === 0 && xmlData.feed?.entry) {
+      items = xmlData.feed.entry
+    }
+    
+    // Try RSS 1.0 format if still no items
+    if (items.length === 0 && xmlData['rdf:RDF']?.item) {
+      items = xmlData['rdf:RDF'].item
+    }
+    
+    console.log(`Found ${items.length} items in feed`)
+    
+    return items.map(item => {
+      // Handle different date formats
+      let pubDate = ''
+      try {
+        const dateStr = getNodeText(item, ['pubDate']) || 
+                       getNodeText(item, ['published']) ||
+                       getNodeText(item, ['dc:date']) ||
+                       new Date().toISOString()
+        pubDate = new Date(dateStr).toISOString()
+      } catch (e) {
+        console.error('Error parsing date:', e)
+        pubDate = new Date().toISOString()
+      }
+      
+      // Handle different content formats
+      const description = getNodeText(item, ['description']) ||
+                         getNodeText(item, ['content']) ||
+                         getNodeText(item, ['content:encoded']) ||
+                         ''
+      
+      // Handle different link formats
+      let link = getNodeText(item, ['link'])
+      if (!link && item.link?._attributes?.href) {
+        link = item.link._attributes.href
+      }
+      
+      return {
+        title: getNodeText(item, ['title']),
+        link,
+        description,
+        pubDate
+      }
+    })
   } catch (error) {
     console.error('Error parsing RSS feed:', error)
     throw error
   }
+}
+
+// Rate limiting helper
+const rateLimitMap = new Map<string, number>()
+async function rateLimitedFetch(sourceId: string, fn: () => Promise<any>) {
+  const now = Date.now()
+  const lastFetch = rateLimitMap.get(sourceId) || 0
+  const minInterval = 1000 // Minimum 1 second between requests
+  
+  if (now - lastFetch < minInterval) {
+    const delay = minInterval - (now - lastFetch)
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
+  
+  rateLimitMap.set(sourceId, Date.now())
+  return fn()
 }
 
 Deno.serve(async (req) => {
@@ -93,44 +164,59 @@ Deno.serve(async (req) => {
     console.log(`Found ${sources.length} sources to fetch`)
 
     let totalArticles = 0
+    const errors: string[] = []
+
     for (const source of sources) {
       try {
-        console.log(`Fetching RSS feed for source ${source.id} from URL ${source.rss_url}`)
-        const items = await parseRSS(source.rss_url)
-        console.log(`Found ${items.length} items in RSS feed for source ${source.id}`)
+        await rateLimitedFetch(source.id, async () => {
+          console.log(`Processing source ${source.id}`)
+          const items = await parseRSS(source.rss_url)
+          console.log(`Found ${items.length} items in RSS feed for source ${source.id}`)
 
-        // Process each item in the feed
-        for (const item of items) {
-          const { error } = await supabaseClient
-            .from('articles')
-            .upsert({
-              title: item.title,
-              url: item.link,
-              content: item.description,
-              published_at: item.pubDate,
-              source_id: source.id,
-              verified: true,
-            }, {
-              onConflict: 'url'
-            })
+          // Process each item in the feed
+          for (const item of items) {
+            if (!item.title || !item.link) {
+              console.warn('Skipping invalid item:', item)
+              continue
+            }
 
-          if (error) {
-            console.error(`Error inserting article from source ${source.id}:`, error)
-          } else {
-            totalArticles++
+            const { error } = await supabaseClient
+              .from('articles')
+              .upsert({
+                title: item.title,
+                url: item.link,
+                content: item.description,
+                published_at: item.pubDate,
+                source_id: source.id,
+                verified: true,
+              }, {
+                onConflict: 'url'
+              })
+
+            if (error) {
+              console.error(`Error inserting article from source ${source.id}:`, error)
+              errors.push(`Failed to save article "${item.title}": ${error.message}`)
+            } else {
+              totalArticles++
+            }
           }
-        }
+        })
       } catch (error) {
         console.error(`Error processing source ${source.id}:`, error)
+        errors.push(`Failed to process source ${source.id}: ${error.message}`)
       }
     }
 
     console.log(`Successfully processed ${totalArticles} articles in total`)
+    if (errors.length > 0) {
+      console.error(`Encountered ${errors.length} errors:`, errors)
+    }
 
     return new Response(
       JSON.stringify({ 
         status: 'success', 
-        message: `Feeds updated successfully. Processed ${totalArticles} articles.` 
+        message: `Feeds updated successfully. Processed ${totalArticles} articles.`,
+        errors: errors.length > 0 ? errors : undefined
       }), 
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
