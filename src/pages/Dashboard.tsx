@@ -35,7 +35,7 @@ const menuItems = [
 
 const Dashboard = () => {
   const session = useSession();
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient<Database>();
   const navigate = useNavigate();
   const { toast } = useToast();
 

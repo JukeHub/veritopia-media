@@ -8,8 +8,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,6 +19,18 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleSuccess = () => {
+    toast({
+      title: "Authentication successful",
+      description: "You have been successfully authenticated.",
+    });
+    onClose();
+    navigate('/dashboard');
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -32,10 +46,10 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             <TabsTrigger value="register">Register</TabsTrigger>
           </TabsList>
           <TabsContent value="login">
-            <LoginForm onSuccess={onClose} />
+            <LoginForm onSuccess={handleSuccess} />
           </TabsContent>
           <TabsContent value="register">
-            <RegisterForm onSuccess={onClose} />
+            <RegisterForm onSuccess={handleSuccess} />
           </TabsContent>
         </Tabs>
       </DialogContent>
