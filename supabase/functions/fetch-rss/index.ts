@@ -93,7 +93,8 @@ async function parseRSS(url: string) {
         title: getNodeText(item, ['title']),
         url: link,
         content: description,
-        published_at: pubDate
+        published_at: pubDate,
+        verified: true
       }
     }).filter(item => item.title && item.url) // Only return items with required fields
   } catch (error) {
@@ -133,31 +134,36 @@ Deno.serve(async (req) => {
         console.log(`Processing source ${source.id}`)
         const items = await parseRSS(source.rss_url)
         
-        // Prepare articles for insertion
+        // Add source_id to each article
         const articles = items.map(item => ({
           ...item,
-          source_id: source.id,
-          verified: true
+          source_id: source.id
         }))
 
-        // Insert articles with upsert to handle duplicates
-        const { data, error } = await supabaseClient
-          .from('articles')
-          .upsert(
-            articles,
-            { 
-              onConflict: 'url',
-              ignoreDuplicates: true 
-            }
-          )
+        // Insert articles with upsert
+        for (const article of articles) {
+          const { error } = await supabaseClient
+            .from('articles')
+            .upsert(article)
 
-        if (error) {
-          console.error(`Error inserting articles for source ${source.id}:`, error)
-          results.push({ sourceId: source.id, status: 'error', error: error.message })
-        } else {
-          console.log(`Successfully processed ${articles.length} articles for source ${source.id}`)
-          results.push({ sourceId: source.id, status: 'success', count: articles.length })
+          if (error) {
+            console.error(`Error inserting article from source ${source.id}:`, error)
+            results.push({ 
+              sourceId: source.id, 
+              status: 'error', 
+              error: error.message,
+              article: article 
+            })
+          } else {
+            console.log(`Successfully inserted article from source ${source.id}:`, article.title)
+          }
         }
+
+        results.push({ 
+          sourceId: source.id, 
+          status: 'success', 
+          count: articles.length 
+        })
       } catch (error) {
         console.error(`Error processing source ${source.id}:`, error)
         results.push({ sourceId: source.id, status: 'error', error: error.message })
