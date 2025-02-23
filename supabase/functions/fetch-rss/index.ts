@@ -7,119 +7,68 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper to safely extract text content from XML nodes
-function getNodeText(node: any, path: string[]): string {
-  try {
-    let current = node
-    for (const key of path) {
-      if (!current[key]) return ''
-      current = current[key]
-    }
-    // Handle both direct text and CDATA
-    if (typeof current === 'string') return current
-    if (current['#text']) return current['#text']
-    if (current['#cdata']) return current['#cdata']
-    return ''
-  } catch (e) {
-    console.error(`Error extracting path ${path.join('.')}:`, e)
-    return ''
-  }
-}
-
 async function parseRSS(url: string) {
   try {
-    console.log(`Fetching RSS feed from ${url}`)
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VeriLens/1.0; +http://verilens.app)'
-      }
-    })
+    if (!url) throw new Error('No URL provided')
     
+    const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     
     const text = await response.text()
-    console.log(`Received ${text.length} bytes of RSS data`)
+    if (!text) throw new Error('Empty response from feed')
     
-    // Parse the XML
     const xmlData = parse(text)
+    if (!xmlData) throw new Error('Failed to parse XML')
     
-    // Handle different feed formats (RSS 2.0, RSS 1.0, Atom)
     let items: any[] = []
     
-    // Try RSS 2.0 format
+    // RSS 2.0
     if (xmlData.rss?.channel?.item) {
-      console.log('Found RSS 2.0 format')
       items = Array.isArray(xmlData.rss.channel.item) ? 
         xmlData.rss.channel.item : [xmlData.rss.channel.item]
     }
-    
-    // Try Atom format if no RSS items found
-    if (items.length === 0 && xmlData.feed?.entry) {
-      console.log('Found Atom format')
+    // Atom
+    else if (xmlData.feed?.entry) {
       items = Array.isArray(xmlData.feed.entry) ?
         xmlData.feed.entry : [xmlData.feed.entry]
     }
-    
-    // Try RSS 1.0 format if still no items
-    if (items.length === 0 && xmlData['rdf:RDF']?.item) {
-      console.log('Found RSS 1.0 format')
+    // RSS 1.0
+    else if (xmlData['rdf:RDF']?.item) {
       items = Array.isArray(xmlData['rdf:RDF'].item) ?
         xmlData['rdf:RDF'].item : [xmlData['rdf:RDF'].item]
     }
     
-    console.log(`Found ${items.length} items in feed`)
+    if (!items || items.length === 0) {
+      throw new Error('No items found in feed')
+    }
     
-    const processedItems = items.map(item => {
-      try {
-        // Handle different date formats
-        let pubDate = ''
-        try {
-          const dateStr = getNodeText(item, ['pubDate']) || 
-                         getNodeText(item, ['published']) ||
-                         getNodeText(item, ['dc:date']) ||
-                         new Date().toISOString()
-          pubDate = new Date(dateStr).toISOString()
-        } catch (e) {
-          console.error('Error parsing date:', e)
-          pubDate = new Date().toISOString()
-        }
-        
-        // Handle different content formats
-        const description = getNodeText(item, ['description']) ||
-                           getNodeText(item, ['content']) ||
-                           getNodeText(item, ['content:encoded']) ||
-                           ''
-        
-        // Handle different link formats
-        let link = getNodeText(item, ['link'])
-        if (!link && item.link?._attributes?.href) {
-          link = item.link._attributes.href
-        }
-        
-        const title = getNodeText(item, ['title'])
-        
-        if (!title || !link) {
-          console.log('Skipping item due to missing title or link:', { title, link })
-          return null
-        }
-        
-        return {
-          title,
-          url: link,
-          content: description,
-          published_at: pubDate,
-          verified: true
-        }
-      } catch (e) {
-        console.error('Error processing item:', e)
-        return null
+    return items.map(item => {
+      if (!item) return null
+      
+      const title = item.title?._text || item.title?._cdata || item.title || ''
+      const link = item.link?._text || item.link?._cdata || item.link || ''
+      const content = item.description?._text || item.description?._cdata || 
+                     item.content?._text || item.content?._cdata ||
+                     item['content:encoded']?._text || item['content:encoded']?._cdata || ''
+      
+      const pubDate = item.pubDate?._text || item.pubDate?._cdata ||
+                     item.published?._text || item.published?._cdata ||
+                     item['dc:date']?._text || item['dc:date']?._cdata ||
+                     new Date().toISOString()
+      
+      // Skip invalid items
+      if (!title || !link) return null
+      
+      return {
+        title,
+        url: link,
+        content,
+        published_at: new Date(pubDate).toISOString(),
+        verified: true
       }
     }).filter(Boolean)
-    
-    console.log(`Successfully processed ${processedItems.length} items`)
-    return processedItems
   } catch (error) {
     console.error('Error parsing RSS feed:', error)
     throw error
@@ -127,136 +76,103 @@ async function parseRSS(url: string) {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
       status: 200
     })
   }
-
+  
   try {
-    console.log('Starting RSS feed fetch...')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Get all sources
-    const { data: sources, error: sourcesError } = await supabaseClient
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials')
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    
+    // Get sources
+    const { data: sources, error: sourcesError } = await supabase
       .from('sources')
       .select('id, rss_url, name')
-
-    if (sourcesError) {
-      console.error('Error fetching sources:', sourcesError)
-      throw sourcesError
-    }
-
-    console.log(`Found ${sources?.length || 0} sources to fetch`)
-
-    if (!sources?.length) {
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          message: 'No sources to process',
-          results: [] 
-        }), 
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          },
-          status: 200
-        }
-      )
-    }
-
+    
+    if (sourcesError) throw sourcesError
+    if (!sources) throw new Error('No sources found')
+    
     const results = []
+    
     for (const source of sources) {
       try {
-        console.log(`Processing source ${source.name} (${source.rss_url})`)
-        const items = await parseRSS(source.rss_url)
-        
-        if (!items || items.length === 0) {
-          console.log(`No valid items found for source ${source.name}`)
+        if (!source.rss_url) {
+          console.error(`Missing RSS URL for source ${source.name}`)
           continue
         }
-
+        
+        const items = await parseRSS(source.rss_url)
+        if (!items || items.length === 0) continue
+        
         const articles = items.map(item => ({
           ...item,
           source_id: source.id
         }))
-
-        // Try bulk upsert first
-        const { error: bulkError } = await supabaseClient
-          .from('articles')
-          .upsert(articles)
-
-        if (bulkError) {
-          console.error('Bulk upsert failed, trying individual inserts')
+        
+        // Insert articles one by one to avoid bulk insert issues
+        for (const article of articles) {
+          const { error } = await supabase
+            .from('articles')
+            .upsert(article, {
+              onConflict: 'url'
+            })
           
-          // If bulk fails, try individual inserts
-          for (const article of articles) {
-            try {
-              const { error } = await supabaseClient
-                .from('articles')
-                .upsert(article)
-
-              if (error) {
-                console.error('Error inserting article:', error)
-              } else {
-                console.log(`Successfully inserted/updated: ${article.title}`)
-              }
-            } catch (e) {
-              console.error('Error during individual insert:', e)
-            }
+          if (error) {
+            console.error('Error inserting article:', error)
           }
-        } else {
-          console.log(`Successfully bulk inserted ${articles.length} articles for ${source.name}`)
         }
-
-        results.push({ 
-          sourceId: source.id, 
-          status: 'success', 
-          count: articles.length 
+        
+        results.push({
+          source: source.name,
+          count: articles.length,
+          status: 'success'
         })
+        
       } catch (error) {
         console.error(`Error processing source ${source.name}:`, error)
-        results.push({ 
-          sourceId: source.id, 
-          status: 'error', 
-          error: error.message 
+        results.push({
+          source: source.name,
+          error: error.message,
+          status: 'error'
         })
       }
     }
-
+    
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: 'RSS feeds processed',
-        results 
-      }), 
+      JSON.stringify({ success: true, results }), 
       { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
         },
         status: 200
       }
     )
+    
   } catch (error) {
-    console.error('Error in fetch-rss function:', error)
+    console.error('Function error:', error)
+    
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: false,
-        error: error.message 
-      }), 
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        }, 
-        status: 200 // Always return 200 to avoid Edge Function errors
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 200 // Keep 200 to avoid edge function errors
       }
     )
   }
