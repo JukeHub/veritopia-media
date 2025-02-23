@@ -44,6 +44,7 @@ async function parseRSS(url: string) {
     
     // Parse the XML
     const xmlData = parse(text)
+    console.log('Parsed XML structure:', JSON.stringify(xmlData, null, 2))
     
     // Handle different feed formats (RSS 2.0, RSS 1.0, Atom)
     let items: any[] = []
@@ -61,9 +62,9 @@ async function parseRSS(url: string) {
       items = xmlData['rdf:RDF'].item
     }
     
-    console.log(`Found ${items.length} items in feed`)
+    console.log(`Found ${items.length} items in feed. First item:`, JSON.stringify(items[0], null, 2))
     
-    return items.map(item => {
+    const processedItems = items.map(item => {
       // Handle different date formats
       let pubDate = ''
       try {
@@ -89,14 +90,28 @@ async function parseRSS(url: string) {
         link = item.link._attributes.href
       }
       
-      return {
+      const processedItem = {
         title: getNodeText(item, ['title']),
         url: link,
         content: description,
         published_at: pubDate,
         verified: true
       }
-    }).filter(item => item.title && item.url) // Only return items with required fields
+      
+      console.log('Processed item:', JSON.stringify(processedItem, null, 2))
+      
+      return processedItem
+    }).filter(item => {
+      if (!item.title || !item.url) {
+        console.log('Filtering out item due to missing title or url:', JSON.stringify(item, null, 2))
+        return false
+      }
+      return true
+    })
+    
+    console.log(`Returning ${processedItems.length} valid items`)
+    return processedItems
+    
   } catch (error) {
     console.error('Error parsing RSS feed:', error)
     throw error
@@ -109,30 +124,57 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Starting RSS feed fetch with debug logging...')
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    console.log('Starting RSS feed fetch...')
+    // First, verify the unique constraint
+    const { data: tableInfo, error: tableError } = await supabaseClient
+      .rpc('check_constraint_exists', { 
+        table_name: 'articles',
+        constraint_name: 'articles_url_key'
+      })
+    
+    console.log('Constraint check result:', tableInfo, tableError)
 
     // Get all sources
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('sources')
-      .select('id, rss_url')
+      .select('id, rss_url, name')
 
     if (sourcesError) {
       console.error('Error fetching sources:', sourcesError)
       throw sourcesError
     }
 
-    console.log(`Found ${sources.length} sources to fetch`)
+    console.log(`Found ${sources?.length || 0} sources to fetch:`, JSON.stringify(sources, null, 2))
+
+    if (!sources?.length) {
+      return new Response(
+        JSON.stringify({ 
+          status: 'success', 
+          message: 'No sources to process',
+          results: [] 
+        }), 
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      )
+    }
 
     const results = []
     for (const source of sources) {
       try {
-        console.log(`Processing source ${source.id}`)
+        console.log(`Processing source ${source.id} (${source.name}): ${source.rss_url}`)
         const items = await parseRSS(source.rss_url)
+        
+        console.log(`Successfully parsed ${items.length} items from ${source.name}`)
         
         // Add source_id to each article
         const articles = items.map(item => ({
@@ -140,23 +182,39 @@ Deno.serve(async (req) => {
           source_id: source.id
         }))
 
-        // Insert articles with upsert
-        for (const article of articles) {
-          const { error } = await supabaseClient
-            .from('articles')
-            .upsert(article)
+        // First try bulk upsert
+        const { error: bulkError } = await supabaseClient
+          .from('articles')
+          .upsert(articles, {
+            onConflict: 'url'
+          })
 
-          if (error) {
-            console.error(`Error inserting article from source ${source.id}:`, error)
-            results.push({ 
-              sourceId: source.id, 
-              status: 'error', 
-              error: error.message,
-              article: article 
-            })
-          } else {
-            console.log(`Successfully inserted article from source ${source.id}:`, article.title)
+        if (bulkError) {
+          console.error(`Bulk upsert failed for source ${source.id}, trying individual inserts:`, bulkError)
+          
+          // If bulk fails, try individual inserts
+          for (const article of articles) {
+            const { error } = await supabaseClient
+              .from('articles')
+              .upsert(article, {
+                onConflict: 'url'
+              })
+
+            if (error) {
+              console.error(`Error inserting article from source ${source.id}:`, error)
+              console.error('Failed article data:', JSON.stringify(article, null, 2))
+              results.push({ 
+                sourceId: source.id, 
+                status: 'error', 
+                error: error.message,
+                article: article 
+              })
+            } else {
+              console.log(`Successfully inserted/updated article: ${article.title}`)
+            }
           }
+        } else {
+          console.log(`Successfully bulk upserted ${articles.length} articles for source ${source.id}`)
         }
 
         results.push({ 
