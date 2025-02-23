@@ -91,31 +91,15 @@ async function parseRSS(url: string) {
       
       return {
         title: getNodeText(item, ['title']),
-        link,
-        description,
-        pubDate
+        url: link,
+        content: description,
+        published_at: pubDate
       }
-    })
+    }).filter(item => item.title && item.url) // Only return items with required fields
   } catch (error) {
     console.error('Error parsing RSS feed:', error)
     throw error
   }
-}
-
-// Rate limiting helper
-const rateLimitMap = new Map<string, number>()
-async function rateLimitedFetch(sourceId: string, fn: () => Promise<any>) {
-  const now = Date.now()
-  const lastFetch = rateLimitMap.get(sourceId) || 0
-  const minInterval = 1000 // Minimum 1 second between requests
-  
-  if (now - lastFetch < minInterval) {
-    const delay = minInterval - (now - lastFetch)
-    await new Promise(resolve => setTimeout(resolve, delay))
-  }
-  
-  rateLimitMap.set(sourceId, Date.now())
-  return fn()
 }
 
 Deno.serve(async (req) => {
@@ -129,32 +113,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get all user subscriptions
-    const { data: subscriptions, error: subError } = await supabaseClient
-      .from('user_sources')
-      .select('source_id')
+    console.log('Starting RSS feed fetch...')
 
-    if (subError) {
-      console.error('Error fetching subscriptions:', subError)
-      throw subError
-    }
-
-    // Get unique source IDs
-    const sourceIds = [...new Set(subscriptions.map(sub => sub.source_id))]
-    console.log('Found subscription source IDs:', sourceIds)
-
-    if (sourceIds.length === 0) {
-      return new Response(
-        JSON.stringify({ status: 'success', message: 'No sources to fetch' }), 
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Fetch sources that users are subscribed to
+    // Get all sources
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('sources')
       .select('id, rss_url')
-      .in('id', sourceIds)
 
     if (sourcesError) {
       console.error('Error fetching sources:', sourcesError)
@@ -163,68 +127,67 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${sources.length} sources to fetch`)
 
-    let totalArticles = 0
-    const errors: string[] = []
-
+    const results = []
     for (const source of sources) {
       try {
-        await rateLimitedFetch(source.id, async () => {
-          console.log(`Processing source ${source.id}`)
-          const items = await parseRSS(source.rss_url)
-          console.log(`Found ${items.length} items in RSS feed for source ${source.id}`)
+        console.log(`Processing source ${source.id}`)
+        const items = await parseRSS(source.rss_url)
+        
+        // Prepare articles for insertion
+        const articles = items.map(item => ({
+          ...item,
+          source_id: source.id,
+          verified: true
+        }))
 
-          // Process each item in the feed
-          for (const item of items) {
-            if (!item.title || !item.link) {
-              console.warn('Skipping invalid item:', item)
-              continue
+        // Insert articles with upsert to handle duplicates
+        const { data, error } = await supabaseClient
+          .from('articles')
+          .upsert(
+            articles,
+            { 
+              onConflict: 'url',
+              ignoreDuplicates: true 
             }
+          )
 
-            const { error } = await supabaseClient
-              .from('articles')
-              .upsert({
-                title: item.title,
-                url: item.link,
-                content: item.description,
-                published_at: item.pubDate,
-                source_id: source.id,
-                verified: true,
-              }, {
-                onConflict: 'url'
-              })
-
-            if (error) {
-              console.error(`Error inserting article from source ${source.id}:`, error)
-              errors.push(`Failed to save article "${item.title}": ${error.message}`)
-            } else {
-              totalArticles++
-            }
-          }
-        })
+        if (error) {
+          console.error(`Error inserting articles for source ${source.id}:`, error)
+          results.push({ sourceId: source.id, status: 'error', error: error.message })
+        } else {
+          console.log(`Successfully processed ${articles.length} articles for source ${source.id}`)
+          results.push({ sourceId: source.id, status: 'success', count: articles.length })
+        }
       } catch (error) {
         console.error(`Error processing source ${source.id}:`, error)
-        errors.push(`Failed to process source ${source.id}: ${error.message}`)
+        results.push({ sourceId: source.id, status: 'error', error: error.message })
       }
-    }
-
-    console.log(`Successfully processed ${totalArticles} articles in total`)
-    if (errors.length > 0) {
-      console.error(`Encountered ${errors.length} errors:`, errors)
     }
 
     return new Response(
       JSON.stringify({ 
         status: 'success', 
-        message: `Feeds updated successfully. Processed ${totalArticles} articles.`,
-        errors: errors.length > 0 ? errors : undefined
+        message: `RSS feeds processed`,
+        results 
       }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
     )
   } catch (error) {
     console.error('Error in fetch-rss function:', error)
     return new Response(
       JSON.stringify({ error: error.message }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }, 
+        status: 500 
+      }
     )
   }
 })
