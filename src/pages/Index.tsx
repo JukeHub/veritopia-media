@@ -1,14 +1,21 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, Book, Eye } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 import { useUser } from '@supabase/auth-helpers-react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const user = useUser();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen">
