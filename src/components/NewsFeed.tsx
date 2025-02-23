@@ -19,9 +19,22 @@ const NewsFeed = () => {
   const { toast } = useToast()
   const session = useSession()
 
-  const { data: articles, isLoading } = useQuery({
-    queryKey: ['articles'],
+  const { data: articles, isLoading, refetch } = useQuery({
+    queryKey: ['articles', session?.user?.id],
     queryFn: async () => {
+      if (!session?.user?.id) return []
+      
+      const { data: userSources, error: sourcesError } = await supabase
+        .from('user_sources')
+        .select('source_id')
+        .eq('user_id', session.user.id)
+
+      if (sourcesError) throw sourcesError
+
+      const sourceIds = userSources.map(us => us.source_id)
+      
+      if (sourceIds.length === 0) return []
+
       const { data, error } = await supabase
         .from('articles')
         .select(`
@@ -31,22 +44,25 @@ const NewsFeed = () => {
             logo_url
           )
         `)
+        .in('source_id', sourceIds)
         .order('published_at', { ascending: false })
         .limit(20)
 
       if (error) throw error
       return data
     },
+    enabled: !!session?.user?.id
   })
 
   const refreshFeeds = async () => {
     try {
       await supabase.functions.invoke('fetch-rss')
+      await refetch()
       toast({
         title: "Feeds refreshed",
         description: "Your news feed has been updated with the latest articles.",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error refreshing feeds",
         description: error.message,
@@ -56,8 +72,19 @@ const NewsFeed = () => {
   }
 
   useEffect(() => {
-    refreshFeeds()
-  }, [])
+    if (session?.user?.id) {
+      refreshFeeds()
+    }
+  }, [session?.user?.id])
+
+  if (!session) {
+    return (
+      <div className="text-center py-8">
+        <h2 className="text-2xl font-bold mb-4">Welcome to VeriLens</h2>
+        <p className="text-gray-600">Please sign in to view your personalized news feed.</p>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -73,6 +100,25 @@ const NewsFeed = () => {
             </CardContent>
           </Card>
         ))}
+      </div>
+    )
+  }
+
+  if (articles?.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">News Feed</h2>
+          <Button onClick={refreshFeeds}>Refresh Feeds</Button>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>No articles found</CardTitle>
+            <CardDescription>
+              Try subscribing to some news sources in the Manage Sources section.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     )
   }

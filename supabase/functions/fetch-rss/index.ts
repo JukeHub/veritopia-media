@@ -18,12 +18,32 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Fetch all sources
+    // Get all user subscriptions
+    const { data: subscriptions, error: subError } = await supabaseClient
+      .from('user_sources')
+      .select('source_id')
+
+    if (subError) throw subError
+
+    // Get unique source IDs
+    const sourceIds = [...new Set(subscriptions.map(sub => sub.source_id))]
+
+    if (sourceIds.length === 0) {
+      return new Response(
+        JSON.stringify({ status: 'success', message: 'No sources to fetch' }), 
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Fetch sources that users are subscribed to
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('sources')
       .select('id, rss_url')
+      .in('id', sourceIds)
 
     if (sourcesError) throw sourcesError
+
+    console.log(`Found ${sources.length} sources to fetch`)
 
     for (const source of sources) {
       try {
@@ -34,7 +54,7 @@ Deno.serve(async (req) => {
 
         // Process each item in the feed
         for (const item of feed.entries) {
-          const { data, error } = await supabaseClient
+          const { error } = await supabaseClient
             .from('articles')
             .upsert({
               title: item.title?.value,
@@ -56,13 +76,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ status: 'success' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ status: 'success', message: 'Feeds updated successfully' }), 
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    console.error('Error in fetch-rss function:', error)
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
   }
 })
