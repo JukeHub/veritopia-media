@@ -1,12 +1,19 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, Book, Eye } from 'lucide-react';
+import AuthModal from '@/components/auth/AuthModal';
+import { useUser } from '@supabase/auth-helpers-react';
 
 const Index = () => {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const user = useUser();
+
   return (
     <div className="min-h-screen">
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-verilens-50 to-white dark:from-verilens-900 dark:to-black z-0" />
@@ -30,8 +37,9 @@ const Index = () => {
               <Button
                 size="lg"
                 className="bg-verilens-600 hover:bg-verilens-700 text-white"
+                onClick={() => !user && setIsAuthModalOpen(true)}
               >
-                Get Started
+                {user ? 'Go to Dashboard' : 'Get Started'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button
@@ -122,8 +130,9 @@ const Index = () => {
               <Button
                 size="lg"
                 className="bg-white text-verilens-600 hover:bg-verilens-50"
+                onClick={() => !user && setIsAuthModalOpen(true)}
               >
-                Start Now
+                {user ? 'Go to Dashboard' : 'Start Now'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </motion.div>
