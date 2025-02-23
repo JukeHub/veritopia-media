@@ -8,9 +8,9 @@ import { createClient } from '@supabase/supabase-js'
 import { SessionContextProvider } from '@supabase/auth-helpers-react'
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import { supabase } from './lib/supabase';
 
 const queryClient = new QueryClient();
-const supabase = createClient('your-project-url', 'your-anon-key')
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
