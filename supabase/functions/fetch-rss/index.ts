@@ -11,26 +11,36 @@ async function parseRSS(url: string) {
     const response = await fetch(url)
     const text = await response.text()
     
-    // Parse XML using DOMParser
-    const parser = new DOMParser()
-    const xmlDoc = parser.parseFromString(text, "text/xml")
+    // Simple XML parsing using regex
+    const items: Array<{ title: string; link: string; description: string; pubDate: string }> = []
+    const itemMatches = text.match(/<item[\s\S]*?<\/item>/g) || []
     
-    // Handle both RSS and Atom feeds
-    const items = Array.from(xmlDoc.querySelectorAll('item, entry'))
-    
-    return items.map(item => {
-      const title = item.querySelector('title')?.textContent || ''
-      const link = item.querySelector('link')?.textContent || item.querySelector('link')?.getAttribute('href') || ''
-      const description = item.querySelector('description, content')?.textContent || ''
-      const pubDate = item.querySelector('pubDate, published')?.textContent || new Date().toISOString()
+    for (const itemXml of itemMatches) {
+      const title = itemXml.match(/<title>(.*?)<\/title>/)?.[1] || ''
+      const link = itemXml.match(/<link>(.*?)<\/link>/)?.[1] || ''
+      const description = itemXml.match(/<description>(.*?)<\/description>/)?.[1] || ''
+      const pubDate = itemXml.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || new Date().toISOString()
       
-      return {
-        title,
-        link,
-        description,
-        pubDate: new Date(pubDate).toISOString()
+      // Clean up CDATA and HTML entities
+      const cleanContent = (str: string) => {
+        return str
+          .replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
       }
-    })
+
+      items.push({
+        title: cleanContent(title),
+        link: cleanContent(link),
+        description: cleanContent(description),
+        pubDate: new Date(pubDate).toISOString()
+      })
+    }
+    
+    return items
   } catch (error) {
     console.error('Error parsing RSS feed:', error)
     throw error
