@@ -5,12 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from '@/lib/database.types';
+import NewsFeed from '@/components/NewsFeed';
+import SourceManager from '@/components/SourceManager';
 import { 
   User, 
   Home,
   Newspaper,
-  BookMarked,
   Settings,
+  Rss,
   Menu
 } from "lucide-react";
 import {
@@ -30,7 +32,7 @@ import {
 const menuItems = [
   { icon: Home, label: "Overview", href: "#overview" },
   { icon: Newspaper, label: "News Feed", href: "#news" },
-  { icon: BookMarked, label: "Saved Articles", href: "#saved" },
+  { icon: Rss, label: "Manage Sources", href: "#sources" },
   { icon: Settings, label: "Settings", href: "#settings" },
 ];
 
@@ -39,6 +41,7 @@ const Dashboard = () => {
   const supabase = useSupabaseClient<Database>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [activeSection, setActiveSection] = React.useState<string>("news");
 
   const handleSignOut = async () => {
     try {
@@ -62,6 +65,26 @@ const Dashboard = () => {
     return null;
   }
 
+  const renderContent = () => {
+    switch (activeSection) {
+      case "news":
+        return <NewsFeed />;
+      case "sources":
+        return <SourceManager />;
+      case "overview":
+        return (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold mb-4">Welcome to VeriLens</h2>
+            <p className="text-gray-600 dark:text-gray-300">
+              Stay informed with your personalized news feed. Add your favorite sources and manage your subscriptions.
+            </p>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50 dark:bg-gray-900">
@@ -76,11 +99,14 @@ const Dashboard = () => {
                 <SidebarMenu>
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild>
-                        <a href={item.href} className="flex items-center gap-2">
+                      <SidebarMenuButton
+                        asChild
+                        onClick={() => setActiveSection(item.href.replace('#', ''))}
+                      >
+                        <button className="flex items-center gap-2 w-full">
                           <item.icon className="h-4 w-4" />
                           <span>{item.label}</span>
-                        </a>
+                        </button>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
@@ -100,7 +126,9 @@ const Dashboard = () => {
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SidebarTrigger>
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white ml-4">Dashboard</h1>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white ml-4">
+                    {menuItems.find(item => item.href.replace('#', '') === activeSection)?.label || 'Dashboard'}
+                  </h1>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -119,12 +147,7 @@ const Dashboard = () => {
 
           <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
             <div className="px-4 py-6 sm:px-0">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold mb-4">Welcome to your Dashboard</h2>
-                <p className="text-gray-600 dark:text-gray-300">
-                  This is your personal dashboard where you can manage your news preferences and analysis.
-                </p>
-              </div>
+              {renderContent()}
             </div>
           </main>
         </div>

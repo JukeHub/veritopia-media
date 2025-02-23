@@ -1,1 +1,9 @@
+
 project_id = "ncbfzjrqmndadbvigdeu"
+
+[api]
+enabled = true
+url = "https://ncbfzjrqmndadbvigdeu.supabase.co/functions/v1"
+
+[functions.fetch-rss]
+verify_jwt = false

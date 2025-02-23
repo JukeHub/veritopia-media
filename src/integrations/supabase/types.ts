@@ -9,6 +9,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      articles: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          published_at: string | null
+          source_id: string | null
+          title: string
+          updated_at: string | null
+          url: string
+          user_id: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          published_at?: string | null
+          source_id?: string | null
+          title: string
+          updated_at?: string | null
+          url: string
+          user_id?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          published_at?: string | null
+          source_id?: string | null
+          title?: string
+          updated_at?: string | null
+          url?: string
+          user_id?: string | null
+          verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_articles_source"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -35,6 +85,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sources: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          rss_url: string
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          rss_url: string
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          rss_url?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      user_sources: {
+        Row: {
+          created_at: string | null
+          id: string
+          source_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          source_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          source_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sources_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
