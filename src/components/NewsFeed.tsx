@@ -19,21 +19,37 @@ const NewsFeed = () => {
   const { toast } = useToast()
   const session = useSession()
 
+  // Add console logs to debug the data fetching process
   const { data: articles, isLoading, refetch } = useQuery({
     queryKey: ['articles', session?.user?.id],
     queryFn: async () => {
-      if (!session?.user?.id) return []
+      console.log('Fetching articles for user:', session?.user?.id)
+      
+      if (!session?.user?.id) {
+        console.log('No user session, returning empty array')
+        return []
+      }
       
       const { data: userSources, error: sourcesError } = await supabase
         .from('user_sources')
         .select('source_id')
         .eq('user_id', session.user.id)
 
-      if (sourcesError) throw sourcesError
+      if (sourcesError) {
+        console.error('Error fetching user sources:', sourcesError)
+        throw sourcesError
+      }
+
+      console.log('User sources:', userSources)
 
       const sourceIds = userSources.map(us => us.source_id)
       
-      if (sourceIds.length === 0) return []
+      if (sourceIds.length === 0) {
+        console.log('No sources subscribed, returning empty array')
+        return []
+      }
+
+      console.log('Fetching articles for sources:', sourceIds)
 
       const { data, error } = await supabase
         .from('articles')
@@ -48,7 +64,12 @@ const NewsFeed = () => {
         .order('published_at', { ascending: false })
         .limit(20)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching articles:', error)
+        throw error
+      }
+
+      console.log('Fetched articles:', data)
       return data
     },
     enabled: !!session?.user?.id
@@ -56,13 +77,19 @@ const NewsFeed = () => {
 
   const refreshFeeds = async () => {
     try {
-      await supabase.functions.invoke('fetch-rss')
+      console.log('Refreshing feeds...')
+      const { data, error } = await supabase.functions.invoke('fetch-rss')
+      console.log('Refresh response:', data, error)
+      
+      if (error) throw error
+      
       await refetch()
       toast({
         title: "Feeds refreshed",
         description: "Your news feed has been updated with the latest articles.",
       })
     } catch (error: any) {
+      console.error('Error refreshing feeds:', error)
       toast({
         title: "Error refreshing feeds",
         description: error.message,
@@ -73,6 +100,7 @@ const NewsFeed = () => {
 
   useEffect(() => {
     if (session?.user?.id) {
+      console.log('Initial feed refresh for user:', session.user.id)
       refreshFeeds()
     }
   }, [session?.user?.id])
@@ -104,7 +132,7 @@ const NewsFeed = () => {
     )
   }
 
-  if (articles?.length === 0) {
+  if (!articles || articles.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
