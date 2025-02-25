@@ -12,6 +12,8 @@ It got to the point where I was doing pseudo-agentic work, copying responses and
 
 ChatGPT understood what was going on, built prompts direcly for Lovable, which Lovable "understood" but kept trying the same fixes.
 
+2/25/25 - I had Lovable remove RSS features, added simple article submission. Cleaning that up. When that works, I'll experiment with adding AI analysis.
+
 #
 
 
