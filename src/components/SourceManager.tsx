@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, ExternalLink, Trash2 } from "lucide-react";
 
 type Source = Database['public']['Tables']['sources']['Row'];
 type UserSource = Database['public']['Tables']['user_sources']['Row'];
@@ -101,6 +101,32 @@ export const SourceManager = () => {
     } catch (error: any) {
       toast({
         title: "Error adding source",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteSource = async (sourceId: string) => {
+    if (!session?.user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('sources')
+        .delete()
+        .eq('id', sourceId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Source deleted successfully",
+        description: "The news source has been removed.",
+      });
+
+      fetchSources();
+    } catch (error: any) {
+      toast({
+        title: "Error deleting source",
         description: error.message,
         variant: "destructive",
       });
@@ -214,17 +240,36 @@ export const SourceManager = () => {
               className="p-4 rounded-lg border bg-white dark:bg-gray-800"
             >
               <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-semibold">{source.name}</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold">{source.name}</h4>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{source.description}</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={isFollowing ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleFollowSource(source.id)}
+                    >
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteSource(source.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  variant={isFollowing ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleFollowSource(source.id)}
-                >
-                  {isFollowing ? 'Following' : 'Follow'}
-                </Button>
               </div>
             </div>
           );
