@@ -5,15 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from '@/lib/database.types';
-import NewsFeed from '@/components/NewsFeed';
-import SourceManager from '@/components/SourceManager';
 import { 
   User, 
   Home,
-  Newspaper,
   Settings,
-  Rss,
-  Menu
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,8 +26,6 @@ import {
 
 const menuItems = [
   { icon: Home, label: "Overview", href: "#overview" },
-  { icon: Newspaper, label: "News Feed", href: "#news" },
-  { icon: Rss, label: "Manage Sources", href: "#sources" },
   { icon: Settings, label: "Settings", href: "#settings" },
 ];
 
@@ -41,7 +34,7 @@ const Dashboard = () => {
   const supabase = useSupabaseClient<Database>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [activeSection, setActiveSection] = React.useState<string>("news");
+  const [activeSection, setActiveSection] = React.useState<string>("overview");
 
   const handleSignOut = async () => {
     try {
@@ -67,21 +60,16 @@ const Dashboard = () => {
 
   const renderContent = () => {
     switch (activeSection) {
-      case "news":
-        return <NewsFeed />;
-      case "sources":
-        return <SourceManager />;
       case "overview":
+      default:
         return (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h2 className="text-2xl font-bold mb-4">Welcome to VeriLens</h2>
             <p className="text-gray-600 dark:text-gray-300">
-              Stay informed with your personalized news feed. Add your favorite sources and manage your subscriptions.
+              Stay informed with your personalized content.
             </p>
           </div>
         );
-      default:
-        return null;
     }
   };
 
