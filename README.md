@@ -2,7 +2,7 @@
 
 I tried Lovable for a few hours. 
 
-It got further in creating a page for me, but it got stuck in trying to fix the RSS news feed after you've created an account. 
+It got further in creating a page for me than GitHub + Copilot, but it got stuck in trying to fix the RSS news feed after you've created an account. 
 
 I subscribed for $20/month to have more uses to try and fix it. It's tried 20+ times and nothing it does has fixed it yet. 
 
