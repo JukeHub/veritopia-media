@@ -90,7 +90,7 @@ export const NewsFeed = () => {
       });
 
       setArticleUrl('');
-      fetchArticles();
+      await fetchArticles(); // Wait for the articles to be fetched
     } catch (error: any) {
       toast({
         title: "Error submitting article",
@@ -110,16 +110,16 @@ export const NewsFeed = () => {
         .from('articles')
         .delete()
         .eq('id', articleId)
-        .eq('user_id', session.user.id); // Only allow deletion if the user owns the article
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
+
+      setArticles(articles.filter(article => article.id !== articleId)); // Update local state immediately
 
       toast({
         title: "Article deleted",
         description: "The article has been removed from your feed.",
       });
-
-      fetchArticles();
     } catch (error: any) {
       toast({
         title: "Error deleting article",

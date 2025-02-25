@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from '@/lib/database.types';
@@ -26,22 +26,20 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
-import { NewsFeed } from '@/components/NewsFeed';
-import { SourceManager } from '@/components/SourceManager';
 
 const menuItems = [
-  { icon: Home, label: "Overview", href: "#overview" },
-  { icon: Newspaper, label: "News Feed", href: "#news-feed" },
-  { icon: DatabaseIcon, label: "Sources", href: "#sources" },
-  { icon: Settings, label: "Settings", href: "#settings" },
+  { icon: Home, label: "Overview", href: "/dashboard" },
+  { icon: Newspaper, label: "News Feed", href: "/dashboard/news-feed" },
+  { icon: DatabaseIcon, label: "Sources", href: "/dashboard/sources" },
+  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
 const Dashboard = () => {
   const session = useSession();
   const supabase = useSupabaseClient<Database>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
-  const [activeSection, setActiveSection] = React.useState<string>("overview");
 
   const handleSignOut = async () => {
     try {
@@ -65,25 +63,6 @@ const Dashboard = () => {
     return null;
   }
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case "news-feed":
-        return <NewsFeed />;
-      case "sources":
-        return <SourceManager />;
-      case "overview":
-      default:
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold mb-4">Welcome to VeriLens</h2>
-            <p className="text-gray-600 dark:text-gray-300">
-              Stay informed with your personalized content.
-            </p>
-          </div>
-        );
-    }
-  };
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50 dark:bg-gray-900">
@@ -100,12 +79,12 @@ const Dashboard = () => {
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
                         asChild
-                        onClick={() => setActiveSection(item.href.replace('#', ''))}
+                        className={location.pathname === item.href ? "bg-accent text-accent-foreground" : ""}
                       >
-                        <button className="flex items-center gap-2 w-full">
+                        <Link to={item.href} className="flex items-center gap-2 w-full">
                           <item.icon className="h-4 w-4" />
                           <span>{item.label}</span>
-                        </button>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
@@ -126,7 +105,7 @@ const Dashboard = () => {
                     </Button>
                   </SidebarTrigger>
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white ml-4">
-                    {menuItems.find(item => item.href.replace('#', '') === activeSection)?.label || 'Dashboard'}
+                    {menuItems.find(item => item.href === location.pathname)?.label || 'Dashboard'}
                   </h1>
                 </div>
                 <div className="flex items-center gap-4">
@@ -146,7 +125,7 @@ const Dashboard = () => {
 
           <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
             <div className="px-4 py-6 sm:px-0">
-              {renderContent()}
+              <Outlet />
             </div>
           </main>
         </div>

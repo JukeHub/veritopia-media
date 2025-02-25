@@ -8,6 +8,8 @@ import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import { NewsFeed } from "./components/NewsFeed";
+import { SourceManager } from "./components/SourceManager";
 import { supabase } from './lib/supabase';
 
 const queryClient = new QueryClient();
@@ -31,14 +33,21 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }>
+              <Route index element={<div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 className="text-2xl font-bold mb-4">Welcome to VeriLens</h2>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Stay informed with your personalized content.
+                </p>
+              </div>} />
+              <Route path="news-feed" element={<NewsFeed />} />
+              <Route path="sources" element={<SourceManager />} />
+              <Route path="settings" element={<div>Settings page coming soon...</div>} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
