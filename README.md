@@ -8,10 +8,7 @@ I subscribed for $20/month to have more uses to try and fix it. It's tried 20+ t
 
 Simple things like changing the background are done halfway, but Lovable thinks it was completely done and returns an error.
 
-# Finish Notes
-
-
-
+#
 
 
 # Welcome to your Lovable project
