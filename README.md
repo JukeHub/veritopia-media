@@ -8,6 +8,10 @@ I subscribed for $20/month to have more uses to try and fix it. It's tried 20+ t
 
 Simple things like changing the background are done halfway, but Lovable thinks it was completely done and returns an error.
 
+It got to the point where I was doing pseudo-agentic work, copying responses and error messages from Lovable and pasting into ChatGPT for help.
+
+ChatGPT understood what was going on, built prompts direcly for Lovable, which Lovable "understood" but kept trying the same fixes.
+
 #
 
 
