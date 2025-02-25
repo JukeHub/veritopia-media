@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
@@ -71,12 +72,12 @@ const Index = () => {
             transition={{ duration: 0.6 }}
             className="max-w-4xl mx-auto"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">Watch Our Introduction</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">What is Media Literacy?</h2>
             <div className="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden shadow-xl">
               <iframe
                 className="absolute top-0 left-0 w-full h-full"
                 src="https://www.youtube.com/embed/AD7N-1Mj-DU"
-                title="VeriLens Introduction"
+                title="What is Media Literacy?"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               ></iframe>
