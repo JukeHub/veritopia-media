@@ -61,6 +61,30 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Video Section */}
+      <section className="bg-background/50 backdrop-blur-sm">
+        <div className="section-container">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-4xl mx-auto"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">Watch Our Introduction</h2>
+            <div className="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden shadow-xl">
+              <iframe
+                className="absolute top-0 left-0 w-full h-full"
+                src="https://www.youtube.com/embed/AD7N-1Mj-DU"
+                title="VeriLens Introduction"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="bg-gray-50 dark:bg-gray-900">
         <div className="section-container">
