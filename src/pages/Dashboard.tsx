@@ -9,6 +9,7 @@ import {
   User, 
   Home,
   Settings,
+  MenuIcon, // Changed from Menu to MenuIcon which is the correct name
 } from "lucide-react";
 import {
   Sidebar,
@@ -111,7 +112,7 @@ const Dashboard = () => {
                 <div className="flex items-center">
                   <SidebarTrigger>
                     <Button variant="ghost" size="icon">
-                      <Menu className="h-5 w-5" />
+                      <MenuIcon className="h-5 w-5" /> {/* Changed from Menu to MenuIcon */}
                     </Button>
                   </SidebarTrigger>
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white ml-4">
