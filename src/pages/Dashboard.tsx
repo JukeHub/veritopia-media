@@ -9,7 +9,9 @@ import {
   User, 
   Home,
   Settings,
-  MenuIcon, // Changed from Menu to MenuIcon which is the correct name
+  MenuIcon,
+  Newspaper,
+  Database as DatabaseIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -24,9 +26,13 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
+import { NewsFeed } from '@/components/NewsFeed';
+import { SourceManager } from '@/components/SourceManager';
 
 const menuItems = [
   { icon: Home, label: "Overview", href: "#overview" },
+  { icon: Newspaper, label: "News Feed", href: "#news-feed" },
+  { icon: DatabaseIcon, label: "Sources", href: "#sources" },
   { icon: Settings, label: "Settings", href: "#settings" },
 ];
 
@@ -61,6 +67,10 @@ const Dashboard = () => {
 
   const renderContent = () => {
     switch (activeSection) {
+      case "news-feed":
+        return <NewsFeed />;
+      case "sources":
+        return <SourceManager />;
       case "overview":
       default:
         return (
@@ -112,7 +122,7 @@ const Dashboard = () => {
                 <div className="flex items-center">
                   <SidebarTrigger>
                     <Button variant="ghost" size="icon">
-                      <MenuIcon className="h-5 w-5" /> {/* Changed from Menu to MenuIcon */}
+                      <MenuIcon className="h-5 w-5" />
                     </Button>
                   </SidebarTrigger>
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white ml-4">
