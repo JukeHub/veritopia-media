@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 type Article = Database['public']['Tables']['articles']['Row'];
 
@@ -102,6 +102,33 @@ export const NewsFeed = () => {
     }
   };
 
+  const handleDeleteArticle = async (articleId: string) => {
+    if (!session?.user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('articles')
+        .delete()
+        .eq('id', articleId)
+        .eq('user_id', session.user.id); // Only allow deletion if the user owns the article
+
+      if (error) throw error;
+
+      toast({
+        title: "Article deleted",
+        description: "The article has been removed from your feed.",
+      });
+
+      fetchArticles();
+    } catch (error: any) {
+      toast({
+        title: "Error deleting article",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   React.useEffect(() => {
     if (session?.user?.id) {
       fetchArticles();
@@ -150,30 +177,38 @@ export const NewsFeed = () => {
 
       <div className="grid gap-4">
         {articles.map((article) => (
-          <Card key={article.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-            <a 
-              href={article.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="block"
-            >
-              <CardHeader>
+          <Card key={article.id} className="hover:shadow-lg transition-shadow">
+            <div className="flex justify-between items-start p-6">
+              <a 
+                href={article.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
                 <CardTitle className="hover:text-primary transition-colors">
                   {article.title}
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="mt-2">
                   {new Date(article.published_at || article.created_at).toLocaleDateString()}
                   {article.verified && ' • Verified'}
                 </CardDescription>
-              </CardHeader>
-              {article.content && (
-                <CardContent>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                {article.content && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
                     {article.content}
                   </p>
-                </CardContent>
+                )}
+              </a>
+              {article.user_id === session?.user?.id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteArticle(article.id)}
+                  className="ml-4"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive hover:text-destructive/90" />
+                </Button>
               )}
-            </a>
+            </div>
           </Card>
         ))}
       </div>
