@@ -1,88 +1,32 @@
-# Notes on using Lovable from Julian Dominguez
+Veritopia-Media: Agentic AI & RSS Transparency
+Lead Developer: Julian Dominguez
 
-I tried Lovable for a few hours. 
+Project Overview
+Veritopia-Media is a high-transparency news curation platform designed to solve the "Black Box" problem of social media algorithms. By integrating user-controlled RSS feeds with AI-driven auditing, this project returns editorial control to the user.
 
-It got further in creating a page for me than GitHub + Copilot, but it got stuck in trying to fix the RSS news feed after you've created an account. 
+Tech Stack
+Language: Python / Java (UNCC Spring 2025)
 
-I subscribed for $20/month to have more uses to try and fix it. It's tried 20+ times and nothing it does has fixed it yet. 
+AI Integration: LLM-based reliability and bias auditing
 
-Simple things like changing the background are done halfway, but Lovable thinks it was completely done and returns an error.
+Methodology: AI-Assisted Development & Manual Refactoring
 
-It got to the point where I was doing pseudo-agentic work, copying responses and error messages from Lovable and pasting into ChatGPT for help.
+Technical Feasibility Study (The "Senior Overseer" Perspective)
+A core component of this project was a study on the limitations of AI-generated code.
 
-ChatGPT understood what was going on, built prompts direcly for Lovable, which Lovable "understood" but kept trying the same fixes.
+The Problem: In 2025, AI-generated tech stacks were found to be insufficient for novice programmers to deploy without deep manual troubleshooting.
 
-2/25/25 - I had Lovable remove RSS features, added simple article submission. Cleaning that up. When that works, I'll experiment with adding AI analysis.
+The Solution: I utilized AI to accelerate boilerplate generation while manually refactoring the Data Structures and API integrations to ensure system stability.
 
-#
+Key Features
+Algorithm Bypass: Direct RSS curation to avoid echo chambers.
+
+AI Auditor: Communicates with feeds to flag potential source bias.
 
 
-# Welcome to your Lovable project
+Refactored Codebase: Optimized for readability and security using industry-standard naming conventions.
 
-## Project info
+Impact & Results
+Identified critical failure points in AI-generated architectures.
 
-**URL**: https://lovable.dev/projects/480802b9-fe52-4e19-9186-6c881c6ded20
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/480802b9-fe52-4e19-9186-6c881c6ded20) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/480802b9-fe52-4e19-9186-6c881c6ded20) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Achieved a modular project structure that allows for easy scaling of new news sources.
